@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Goldman Sachs.
+ * Copyright 2015 Goldman Sachs.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,6 +78,7 @@ import com.gs.collections.impl.block.function.PassThruFunction0;
 import com.gs.collections.impl.block.procedure.CollectionAddProcedure;
 import com.gs.collections.impl.factory.Bags;
 import com.gs.collections.impl.factory.Lists;
+import com.gs.collections.impl.factory.Sets;
 import com.gs.collections.impl.factory.primitive.BooleanBags;
 import com.gs.collections.impl.factory.primitive.ByteBags;
 import com.gs.collections.impl.factory.primitive.CharBags;
@@ -722,7 +723,13 @@ public abstract class AbstractRichIterableTestCase
     {
         Assert.assertEquals(
                 Bags.mutable.of(2, 3, 4),
-                this.newWith(1, 2, 3).collectWith(AddFunction.INTEGER, 1, FastList.<Integer>newList()).toBag());
+                this.newWith(1, 2, 3).collectWith(AddFunction.INTEGER, 1, Lists.mutable.empty()).toBag());
+        Assert.assertEquals(
+                Bags.mutable.of(2, 3, 4),
+                this.newWith(1, 2, 3).collectWith(AddFunction.INTEGER, 1, Bags.mutable.empty()));
+        Assert.assertEquals(
+                Sets.mutable.of(2, 3, 4),
+                this.newWith(1, 2, 3).collectWith(AddFunction.INTEGER, 1, Sets.mutable.empty()));
     }
 
     @Test
@@ -837,8 +844,7 @@ public abstract class AbstractRichIterableTestCase
     @Test
     public void sumFloatConsistentRounding1()
     {
-        MutableList<Integer> list = Interval.oneTo(100_000).toList();
-        Collections.shuffle(list);
+        MutableList<Integer> list = Interval.oneTo(100_000).toList().shuffleThis();
 
         // The test only ensures the consistency/stability of rounding. This is not meant to test the "correctness" of the float calculation result.
         // Indeed the lower bits of this calculation result are always incorrect due to the information loss of original float values.
@@ -851,8 +857,7 @@ public abstract class AbstractRichIterableTestCase
     @Test
     public void sumFloatConsistentRounding2()
     {
-        MutableList<Integer> list = Interval.oneTo(99_999).toList();
-        Collections.shuffle(list);
+        MutableList<Integer> list = Interval.oneTo(99_999).toList().shuffleThis();
 
         // The test only ensures the consistency/stability of rounding. This is not meant to test the "correctness" of the float calculation result.
         // Indeed the lower bits of this calculation result are always incorrect due to the information loss of original float values.
@@ -874,8 +879,7 @@ public abstract class AbstractRichIterableTestCase
     @Test
     public void sumDoubleConsistentRounding1()
     {
-        MutableList<Integer> list = Interval.oneTo(100_000).toList();
-        Collections.shuffle(list);
+        MutableList<Integer> list = Interval.oneTo(100_000).toList().shuffleThis();
 
         Assert.assertEquals(
                 1.082323233711138,
@@ -886,8 +890,7 @@ public abstract class AbstractRichIterableTestCase
     @Test
     public void sumDoubleConsistentRounding2()
     {
-        MutableList<Integer> list = Interval.oneTo(99_999).toList();
-        Collections.shuffle(list);
+        MutableList<Integer> list = Interval.oneTo(99_999).toList().shuffleThis();
 
         Assert.assertEquals(
                 33333.0,
@@ -932,6 +935,32 @@ public abstract class AbstractRichIterableTestCase
     }
 
     @Test
+    public void sumByFloatConsistentRounding()
+    {
+        MutableList<Integer> group1 = Interval.oneTo(100_000).toList().shuffleThis();
+        MutableList<Integer> group2 = Interval.fromTo(100_001, 200_000).toList().shuffleThis();
+        MutableList<Integer> integers = Lists.mutable.withAll(group1);
+        integers.addAll(group2);
+        ObjectDoubleMap<Integer> result = integers.sumByFloat(
+                integer -> integer > 100_000 ? 2 : 1,
+                integer -> {
+                    Integer i = integer > 100_000 ? integer - 100_000 : integer;
+                    return 1.0f / (i.floatValue() * i.floatValue() * i.floatValue() * i.floatValue());
+                });
+
+        // The test only ensures the consistency/stability of rounding. This is not meant to test the "correctness" of the float calculation result.
+        // Indeed the lower bits of this calculation result are always incorrect due to the information loss of original float values.
+        Assert.assertEquals(
+                1.082323233761663,
+                result.get(1),
+                1.0e-15);
+        Assert.assertEquals(
+                1.082323233761663,
+                result.get(2),
+                1.0e-15);
+    }
+
+    @Test
     public void sumByLong()
     {
         RichIterable<Integer> values = this.newWith(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
@@ -947,6 +976,30 @@ public abstract class AbstractRichIterableTestCase
         ObjectDoubleMap<Integer> result = values.sumByDouble(d -> d % 2, e -> e);
         Assert.assertEquals(25.0d, result.get(1), 0.0);
         Assert.assertEquals(30.0d, result.get(0), 0.0);
+    }
+
+    @Test
+    public void sumByDoubleConsistentRounding()
+    {
+        MutableList<Integer> group1 = Interval.oneTo(100_000).toList().shuffleThis();
+        MutableList<Integer> group2 = Interval.fromTo(100_001, 200_000).toList().shuffleThis();
+        MutableList<Integer> integers = Lists.mutable.withAll(group1);
+        integers.addAll(group2);
+        ObjectDoubleMap<Integer> result = integers.sumByDouble(
+                integer -> integer > 100_000 ? 2 : 1,
+                integer -> {
+                    Integer i = integer > 100_000 ? integer - 100_000 : integer;
+                    return 1.0d / (i.doubleValue() * i.doubleValue() * i.doubleValue() * i.doubleValue());
+                });
+
+        Assert.assertEquals(
+                1.082323233711138,
+                result.get(1),
+                1.0e-15);
+        Assert.assertEquals(
+                1.082323233711138,
+                result.get(2),
+                1.0e-15);
     }
 
     @Test

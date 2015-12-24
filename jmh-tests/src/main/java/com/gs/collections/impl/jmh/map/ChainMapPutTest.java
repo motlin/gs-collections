@@ -21,9 +21,11 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import com.carrotsearch.hppc.Containers;
+import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.carrotsearch.hppc.ObjectObjectMap;
-import com.carrotsearch.hppc.ObjectObjectOpenHashMap;
 import com.gs.collections.api.map.MutableMap;
+import com.gs.collections.impl.jmh.runner.AbstractJMHTestRunner;
 import com.gs.collections.impl.map.mutable.UnifiedMap;
 import org.apache.commons.lang.RandomStringUtils;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -39,7 +41,7 @@ import scala.collection.mutable.HashTable;
 @State(Scope.Thread)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class ChainMapPutTest
+public class ChainMapPutTest extends AbstractJMHTestRunner
 {
     private static final int RANDOM_COUNT = 9;
 
@@ -93,9 +95,9 @@ public class ChainMapPutTest
         int localSize = this.size;
         float localLoadFactor = this.loadFactor;
         String[] localElements = this.elements;
-        int defaultInitialCapacity = ObjectObjectOpenHashMap.DEFAULT_CAPACITY;
+        int defaultInitialCapacity = Containers.DEFAULT_EXPECTED_ELEMENTS;
 
-        ObjectObjectMap<String, String> hppc = this.isPresized ? new ObjectObjectOpenHashMap<>(localSize, localLoadFactor) : new ObjectObjectOpenHashMap<>(defaultInitialCapacity, localLoadFactor);
+        ObjectObjectMap<String, String> hppc = this.isPresized ? new ObjectObjectHashMap<>(localSize, localLoadFactor) : new ObjectObjectHashMap<>(defaultInitialCapacity, localLoadFactor);
 
         for (int i = 0; i < localSize; i++)
         {
@@ -129,7 +131,10 @@ public class ChainMapPutTest
     public scala.collection.mutable.HashMap<String, String> scala()
     {
         int localSize = this.size;
-        int localLoadFactor = (int) (this.loadFactor * 1000);
+        if (Float.compare(this.loadFactor, 0.75f) != 0)
+        {
+            throw new IllegalArgumentException();
+        }
         String[] localElements = this.elements;
 
         /**
@@ -137,7 +142,7 @@ public class ChainMapPutTest
          */
         int defaultInitialSize = 16;
 
-        scala.collection.mutable.HashMap<String, String> scala = this.isPresized ? new PresizableHashMap<>(localSize, localLoadFactor) : new PresizableHashMap<>(defaultInitialSize, localLoadFactor);
+        scala.collection.mutable.HashMap<String, String> scala = this.isPresized ? new PresizableHashMap<>(localSize) : new PresizableHashMap<>(defaultInitialSize);
 
         for (int i = 0; i < localSize; i++)
         {

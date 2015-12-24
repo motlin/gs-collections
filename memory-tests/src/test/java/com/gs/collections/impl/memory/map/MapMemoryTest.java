@@ -20,8 +20,9 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
 
+import com.carrotsearch.hppc.Containers;
+import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.carrotsearch.hppc.ObjectObjectMap;
-import com.carrotsearch.hppc.ObjectObjectOpenHashMap;
 import com.gs.collections.api.block.function.Function0;
 import com.gs.collections.api.block.procedure.Procedure;
 import com.gs.collections.api.list.ImmutableList;
@@ -35,6 +36,7 @@ import net.openhft.koloboke.collect.map.hash.HashObjObjMaps;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.mutable.AnyRefMap;
 import scala.collection.mutable.HashTable;
 
 public class MapMemoryTest
@@ -44,7 +46,8 @@ public class MapMemoryTest
     @Test
     public void memoryForScaledMaps()
     {
-        LOGGER.info("Comparing Items: Scala {}, JDK {}, Trove {}, Trove Presized {}, GSC {}, JDK {}, HPPC {}, Koloboke {}",
+        LOGGER.info(
+                "Comparing Items: Scala {}, JDK {}, Trove {}, Trove Presized {}, GSC {}, JDK {}, HPPC {}, Koloboke {}, Scala {}",
                 scala.collection.mutable.HashMap.class.getSimpleName(),
                 HashMap.class.getSimpleName(),
                 THashMap.class.getSimpleName(),
@@ -52,7 +55,8 @@ public class MapMemoryTest
                 UnifiedMap.class.getSimpleName(),
                 Hashtable.class.getSimpleName(),
                 ObjectObjectMap.class.getSimpleName(),
-                HashObjObjMap.class.getSimpleName()
+                HashObjObjMap.class.getSimpleName(),
+                AnyRefMap.class.getSimpleName()
         );
 
         for (int size = 0; size < 1000001; size += 25000)
@@ -77,7 +81,7 @@ public class MapMemoryTest
                     .printContainerMemoryUsage("Map", size, new UnifiedMapFactory(size, loadFactor));
             MemoryTestBench.on(Hashtable.class, suffix)
                     .printContainerMemoryUsage("Map", size, new HashtableFactory(size, loadFactor));
-            MemoryTestBench.on(ObjectObjectOpenHashMap.class, suffix)
+            MemoryTestBench.on(ObjectObjectHashMap.class, suffix)
                     .printContainerMemoryUsage("Map", size, new HppcMapFactory(size, loadFactor));
         }
 
@@ -94,6 +98,8 @@ public class MapMemoryTest
 
         MemoryTestBench.on(HashObjObjMap.class)
                 .printContainerMemoryUsage("Map", size, new KolobokeMapFactory(size));
+        MemoryTestBench.on(AnyRefMap.class)
+                .printContainerMemoryUsage("Map", size, new ScalaAnyRefMapFactory(size));
     }
 
     public abstract static class SizedMapFactory
@@ -258,7 +264,7 @@ public class MapMemoryTest
         @Override
         public ObjectObjectMap<Integer, String> value()
         {
-            final ObjectObjectMap<Integer, String> map = new ObjectObjectOpenHashMap<>(ObjectObjectOpenHashMap.DEFAULT_CAPACITY, this.loadFactor);
+            final ObjectObjectMap<Integer, String> map = new ObjectObjectHashMap<>(Containers.DEFAULT_EXPECTED_ELEMENTS, this.loadFactor);
 
             this.data.forEach(new Procedure<Integer>()
             {
@@ -284,6 +290,30 @@ public class MapMemoryTest
         public HashObjObjMap<Integer, String> value()
         {
             return this.fill(HashObjObjMaps.<Integer, String>newMutableMap());
+        }
+    }
+
+    private static final class ScalaAnyRefMapFactory
+            extends SizedMapFactory
+            implements Function0<AnyRefMap<Integer, String>>
+    {
+        private ScalaAnyRefMapFactory(int size)
+        {
+            super(size, 0.0f);
+        }
+
+        @Override
+        public AnyRefMap<Integer, String> value()
+        {
+            final AnyRefMap<Integer, String> map = new AnyRefMap<>();
+            this.data.forEach(new Procedure<Integer>()
+            {
+                public void value(Integer each)
+                {
+                    map.put(each, "dummy");
+                }
+            });
+            return map;
         }
     }
 }
